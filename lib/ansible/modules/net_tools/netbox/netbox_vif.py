@@ -260,10 +260,10 @@ def ensure_vif_absent(nb_endpoint, data):
     vif = nb_endpoint.get(name=data["name"])
     if vif:
         vif.delete()
-        msg = 'Virtual interface %s deleted' % (data["name"])
+        msg = 'Virtual interface %s @ %s deleted' % (data["name"], data["virtual_machine"])
         changed = True
     else:
-        msg = 'Virtual interface %s already absent' % (data["name"])
+        msg = 'Virtual interface %s already absent from %s' % (data["name"], data["virtual_machine"])
         changed = False
 
     return {"msg": msg, "changed": changed}
