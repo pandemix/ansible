@@ -51,8 +51,8 @@ CONVERT_TO_ID = dict(
     site="sites",
     tenant="tenants",
     tenant_group="tenant_groups",
+    virtual_machine="virtual-machines",
     vlan="vlans",
-    vm="virtual-machines",
     vrf="vrfs"
 )
 
