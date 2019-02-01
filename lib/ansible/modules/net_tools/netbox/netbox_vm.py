@@ -16,7 +16,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.0',
 DOCUMENTATION = r'''
 ---
 module: netbox_vm
-short_description: Create, modify or delete virtual machines and their interfaces
+short_description: Create, modify or delete virtual machines
 description:
   - Creates, modifies or removes virtual machines from Netbox
 notes:
@@ -32,71 +32,62 @@ version_added: '2.8'
 options:
   netbox_url:
     description:
-      - URL of the Netbox instance resolvable by Ansible control host
+      - URL of the Netbox instance resolvable by Ansible control host.
     required: true
   netbox_token:
     description:
-      - The token created within Netbox to authorize API access
+      - The token created within Netbox to authorize API access.
     required: true
   data:
     description:
-      - Defines the device configuration
+      - Defines the virtual machine.
     suboptions:
       name:
         description:
-          - The name of the device
-      device_type:
+          - The name of the virtual machine.
+          - Required
+      cluster:
         description:
+          - Cluster where the virtual machine will run.
           - Required if I(state=present)
-      device_role:
+      vcpus:
         description:
-          - Required if I(state=present)
+          - Number of vCPUs assigned to this virtual machine.
+      memory:
+        description:
+          - RAM assigned to this virtual machine in MB.
+      disk:
+        description:
+          - Size of this virtual machine's storage file in GB.
+      role:
+        description:
+          - The role of the virtual machine.
       tenant:
         description:
-          - The tenant that the device will be assigned to
+          - The tenant that the virtual machine will be assigned to.
       platform:
         description:
-          - The platform of the device
-      serial:
-        description:
-          - Serial number of the device
-      asset_tag:
-        description:
-          - Asset tag that is associated to the device
+          - The platform of the virtual machine.
       site:
         description:
-          - Required if I(state=present)
-      rack:
-        description:
-          - The name of the rack to assign the device to
-      position:
-        description:
-          - The position of the device in the rack defined above
-      face:
-        description:
-          - Required if I(rack) is defined
+          - The site where this virtual machine is hosted.
       status:
         description:
-          - The status of the device
+          - The status of the virtual machine.
         choices:
           - Active
           - Offline
-          - Planned
           - Staged
-          - Failed
-          - Inventory
-      cluster:
-        description:
-          - Cluster that the device will be assigned to
       comments:
         description:
-          - Comments that may include additional information in regards to the device
+          - Comments that may include additional information in regards to the device.
       tags:
         description:
-          - Any tags that the device may need to be associated with
+          - A list of tags to apply to the virtual machine.
       custom_fields:
         description:
-          - must exist in Netbox
+          - A dict of fieldname - value pairs appropriate to the types of the custom fields.
+          - Custom fields must be set up in the administrative pages of Netbox before they can be used.
     required: true
   state:
     description:
@@ -110,6 +101,7 @@ options:
     type: bool
 '''
 
+# TODO: fix the examples
 EXAMPLES = r'''
 - name: "Test Netbox modules"
   connection: local
@@ -164,7 +156,7 @@ EXAMPLES = r'''
 '''
 
 RETURN = r'''
-device:
+vm:
   description: Serialized object as created or already existent within Netbox
   returned: on creation
   type: dict
@@ -175,7 +167,7 @@ msg:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.net_tools.netbox.netbox_utils import find_ids, normalize_data, DEVICE_STATUS, FACE_ID
+from ansible.module_utils.net_tools.netbox.netbox_utils import find_ids, normalize_data, VM_STATUS
 import json
 try:
     import pynetbox
@@ -204,8 +196,8 @@ def main():
         module.fail_json(msg='pynetbox is required for this module')
 
     # Assign variables to be used with module
-    app = 'dcim'
-    endpoint = 'devices'
+    app = 'virtualization'
+    endpoint = 'virtual-machines'
     url = module.params["netbox_url"]
     token = module.params["netbox_token"]
     data = module.params["data"]
@@ -227,55 +219,53 @@ def main():
     try:
         if 'present' in state:
             return module.exit_json(
-                **ensure_device_present(nb, nb_endpoint, norm_data)
+                **ensure_vm_present(nb, nb_endpoint, norm_data)
             )
         else:
             return module.exit_json(
-                **ensure_device_absent(nb_endpoint, norm_data)
+                **ensure_vm_absent(nb_endpoint, norm_data)
             )
     except pynetbox.RequestError as e:
         return module.fail_json(msg=json.loads(e.error))
 
 
-def ensure_device_present(nb, nb_endpoint, data):
+def ensure_vm_present(nb, nb_endpoint, data):
     '''
-    :returns dict(device, msg, changed): dictionary resulting of the request,
-        where `device` is the serialized device fetched or newly created in
+    :returns dict(vm, msg, changed): dictionary resulting of the request,
+        where `vm` is the serialized vm fetched or newly created in
         Netbox
     '''
-    nb_device = nb_endpoint.get(name=data["name"])
-    if not nb_device:
-        device = _netbox_create_device(nb, nb_endpoint, data).serialize()
+    nb_vm = nb_endpoint.get(name=data["name"])
+    if not nb_vm:
+        vm = _netbox_create_vm(nb, nb_endpoint, data).serialize()
         changed = True
-        msg = "Device %s created" % (data["name"])
+        msg = "Virtual machine %s created" % (data["name"])
     else:
-        msg = "Device %s already exists" % (data["name"])
-        device = nb_device.serialize()
+        msg = "Virtual machine %s already exists" % (data["name"])
+        vm = nb_vm.serialize()
         changed = False
 
-    return {"device": device, "msg": msg, "changed": changed}
+    return {"vm": vm, "msg": msg, "changed": changed}
 
 
-def _netbox_create_device(nb, nb_endpoint, data):
+def _netbox_create_vm(nb, nb_endpoint, data):
     if data.get("status"):
-        data["status"] = DEVICE_STATUS.get(data["status"].lower(), 0)
-    if data.get("face"):
-        data["face"] = FACE_ID.get(data["face"].lower(), 0)
+        data["status"] = VM_STATUS.get(data["status"].lower(), 0)
     data = find_ids(nb, data)
     return nb_endpoint.create(data)
 
 
-def ensure_device_absent(nb_endpoint, data):
+def ensure_vm_absent(nb_endpoint, data):
     '''
     :returns dict(msg, changed)
     '''
-    device = nb_endpoint.get(name=data["name"])
-    if device:
-        device.delete()
-        msg = 'Device %s deleted' % (data["name"])
+    vm = nb_endpoint.get(name=data["name"])
+    if vm:
+        vm.delete()
+        msg = 'Virtual machine %s deleted' % (data["name"])
         changed = True
     else:
-        msg = 'Device %s already absent' % (data["name"])
+        msg = 'Virtual machine %s already absent' % (data["name"])
         changed = False
 
     return {"msg": msg, "changed": changed}
