@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright: (c) 2018, Mikhail Yohman (@fragmentedpacket) <mikhail.yohman@gmail.com>
 # Copyright: (c) 2018, David Gomez (@amb1s1) <david.gomez@networktocode.com>
+# Support for VLANs, virtual machines & virtual interfaces added by Caleb Cullen, 2019 (@pandemix) <ccullen@easydns.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 __metaclass__ = type
@@ -9,10 +10,10 @@ API_APPS_ENDPOINTS = dict(
     circuits=[],
     dcim=["device_roles", "device_types", "devices", "interfaces", "platforms", "racks", "sites"],
     extras=[],
-    ipam=["ip_addresses", "prefixes", "vrfs"],
+    ipam=["ip_addresses", "prefixes", "vlans", "vrfs"],
     secrets=[],
     tenancy=["tenants", "tenant_groups"],
-    virtualization=["clusters"]
+    virtualization=["clusters", "virtual-interfaces", "virtual-machines"]
 )
 
 QUERY_TYPES = dict(
@@ -39,6 +40,7 @@ CONVERT_TO_ID = dict(
     device_role="device_roles",
     device_type="device_types",
     interface="interfaces",
+    vif="virtual-interfaces",
     nat_inside="ip_addresses",
     nat_outside="ip_addresses",
     platform="platforms",
@@ -49,6 +51,8 @@ CONVERT_TO_ID = dict(
     site="sites",
     tenant="tenants",
     tenant_group="tenant_groups",
+    vlan="vlans",
+    vm="virtual-machines",
     vrf="vrfs"
 )
 
@@ -73,6 +77,12 @@ DEVICE_STATUS = dict(
     staged=3,
     failed=4,
     inventory=5
+)
+
+VM_STATUS = dict(
+    offline=0,
+    active=1,
+    staged=3
 )
 
 IP_ADDRESS_STATUS = dict(
@@ -106,6 +116,12 @@ VLAN_STATUS = dict(
     deprecated=3
 )
 
+VLAN_MODE = dict(
+    access=100,
+    tagged=200,
+    tagged_all=300
+)
+
 
 def find_app(endpoint):
     for k, v in API_APPS_ENDPOINTS.items():
@@ -121,10 +137,14 @@ def find_ids(nb, data):
             search = v
             app = find_app(endpoint)
             nb_app = getattr(nb, app)
+            if k == "vif"
+                endpoint = "interfaces"
             nb_endpoint = getattr(nb_app, endpoint)
 
             if k == "interface":
                 query_id = nb_endpoint.get(**{"name": v["name"], "device": v["device"]})
+            elif k == "vif"
+                query_id = nb_endpoint.get(**{"name": v["name"], "virtual_machine": v["virtual_machine"]})
             elif k == "nat_inside":
                 if v.get("vrf"):
                     vrf_id = nb.ipam.vrfs.get(**{"name": v["vrf"]})
