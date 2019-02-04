@@ -13,7 +13,7 @@ API_APPS_ENDPOINTS = dict(
     ipam=["ip_addresses", "prefixes", "vlans", "vrfs"],
     secrets=[],
     tenancy=["tenants", "tenant_groups"],
-    virtualization=["clusters", "virtual-interfaces", "virtual-machines"]
+    virtualization=["clusters", "virtual-machines"]
 )
 
 QUERY_TYPES = dict(
@@ -40,7 +40,6 @@ CONVERT_TO_ID = dict(
     device_role="device_roles",
     device_type="device_types",
     interface="interfaces",
-    vif="virtual-interfaces",
     nat_inside="ip_addresses",
     nat_outside="ip_addresses",
     platform="platforms",
@@ -133,18 +132,21 @@ def find_app(endpoint):
 def find_ids(nb, data):
     for k, v in data.items():
         if k in CONVERT_TO_ID:
-            endpoint = CONVERT_TO_ID[k]
-            search = v
-            app = find_app(endpoint)
-            nb_app = getattr(nb, app)
-            if k == "vif"
+            if k == "interface" and v.get("virtual_machine"):
+                app = "virtualization"
                 endpoint = "interfaces"
+            else:
+                endpoint = CONVERT_TO_ID[k]
+                app = find_app(endpoint)
+            search = v
+            nb_app = getattr(nb, app)
             nb_endpoint = getattr(nb_app, endpoint)
 
             if k == "interface":
-                query_id = nb_endpoint.get(**{"name": v["name"], "device": v["device"]})
-            elif k == "vif"
-                query_id = nb_endpoint.get(**{"name": v["name"], "virtual_machine": v["virtual_machine"]})
+                if v.get("virtual_machine"):
+                    query_id = nb_endpoint.get(**{"name": v["name"], "virtual_machine": v["virtual_machine"]})
+                else:
+                    query_id = nb_endpoint.get(**{"name": v["name"], "device": v["device"]})
             elif k == "nat_inside":
                 if v.get("vrf"):
                     vrf_id = nb.ipam.vrfs.get(**{"name": v["vrf"]})
