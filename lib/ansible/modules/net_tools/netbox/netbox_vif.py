@@ -235,13 +235,13 @@ def ensure_vif_present(nb, nb_endpoint, data):
         where `vif` is the serialized vif fetched or newly created in
         Netbox
     '''
-    nb_vif = nb_endpoint.get(name=data["name"])
+    nb_vif = nb_endpoint.get(name=data["name"], virtual_machine=data["virtual_machine"])
     if not nb_vif:
         vif = _netbox_create_vif(nb, nb_endpoint, data).serialize()
         changed = True
-        msg = "Virtual interface %s created" % (data["name"])
+        msg = "Virtual interface %s created on %s" % (data["name"], data["virtual_machine"])
     else:
-        msg = "Virtual interface %s already exists" % (data["name"])
+        msg = "Virtual interface %s already exists on %s" % (data["name"], data["virtual_machine"])
         vif = nb_vif.serialize()
         changed = False
 
@@ -257,13 +257,13 @@ def ensure_vif_absent(nb_endpoint, data):
     '''
     :returns dict(msg, changed)
     '''
-    vif = nb_endpoint.get(name=data["name"])
+    vif = nb_endpoint.get(name=data["name"], virtual_machine=data["virtual_machine"])
     if vif:
         vif.delete()
         msg = 'Virtual interface %s @ %s deleted' % (data["name"], data["virtual_machine"])
         changed = True
     else:
-        msg = 'Virtual interface %s already absent from %s' % (data["name"], data["virtual_machine"])
+        msg = 'Virtual interface %s does not exist on %s' % (data["name"], data["virtual_machine"])
         changed = False
 
     return {"msg": msg, "changed": changed}
