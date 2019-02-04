@@ -173,42 +173,35 @@ try:
 except ImportError:
     HAS_PYNETBOX = False
 
-
+# this routine gets called when state=present; it should perform an update if the record already exists
 def netbox_create_ip_address(nb, nb_endpoint, data):
     result = []
+    norm_data = normalize_data(data)
+    if norm_data.get("status"):
+        norm_data["status"] = IP_ADDRESS_STATUS.get(norm_data["status"].lower())
+    if norm_data.get("role"):
+        norm_data["role"] = IP_ADDRESS_ROLE.get(norm_data["role"].lower())
+    data = find_ids(nb, norm_data)
+    if data.get('failed'):
+        result.append(data)
+        return result
+
+    get_kwargs = dict(address=data["address"])
     if data.get('vrf'):
-        norm_data = normalize_data(data)
-        if norm_data.get("status"):
-            norm_data["status"] = IP_ADDRESS_STATUS.get(norm_data["status"].lower())
-        if norm_data.get("role"):
-            norm_data["role"] = IP_ADDRESS_ROLE.get(norm_data["role"].lower())
-        data = find_ids(nb, norm_data)
-        if data.get('failed'):
-            result.append(data)
-            return result
+        get_kwargs['vrf_id'] = data['vrf']
 
-        if not nb_endpoint.get(address=data["address"], vrf_id=data['vrf']):
-            try:
-                return nb_endpoint.create([data])
-            except pynetbox.RequestError as e:
-                return json.loads(e.error)
-        else:
-            result.append({'failed': '%s already exists in Netbox' % (data["address"])})
+    if not nb_endpoint.get(**get_kwargs):
+        # if the record doesn't exist, try to create it
+        try:
+            return nb_endpoint.create([data])
+        except pynetbox.RequestError as e:
+            return json.loads(e.error)
     else:
-        if not nb_endpoint.get(address=data["address"]):
-            norm_data = normalize_data(data)
-            if norm_data.get("status"):
-                norm_data["status"] = IP_ADDRESS_STATUS.get(norm_data["status"].lower())
-            if norm_data.get("role"):
-                norm_data["role"] = IP_ADDRESS_ROLE.get(norm_data["role"].lower())
-            data = find_ids(nb, norm_data)
-
-            try:
-                return nb_endpoint.create([data])
-            except pynetbox.RequestError as e:
-                return json.loads(e.error)
-        else:
-            result.append({'failed': '%s already exists in Netbox' % (data["address"])})
+        # if the record does exist, try to update it
+        try:
+            return nb_endpoint.update([data])
+        except pynetbox.RequestError as e:
+            return json.loads(e.error)
 
     return result
 
