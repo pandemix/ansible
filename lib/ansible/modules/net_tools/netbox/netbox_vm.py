@@ -241,19 +241,28 @@ def ensure_vm_present(nb, nb_endpoint, data):
         changed = True
         msg = "Virtual machine %s created" % (data["name"])
     else:
-        msg = "Virtual machine %s already exists" % (data["name"])
+        # since the record already exists, attempt to update it
+        changed = _netbox_update_vm(nb, nb_vm, data)
         vm = nb_vm.serialize()
-        changed = False
+        msg = "Virtual machine %s " % (data["name"])
+        msg = msg + ("updated" if changed else "needed no update")
 
     return {"vm": vm, "msg": msg, "changed": changed}
 
-
-def _netbox_create_vm(nb, nb_endpoint, data):
+def _flatten_vm_enums(data):
     if data.get("status"):
         data["status"] = VM_STATUS.get(data["status"].lower(), 0)
+    return data
+
+def _netbox_create_vm(nb, nb_endpoint, data):
+    data = _flatten_vm_enums(data)
     data = find_ids(nb, data)
     return nb_endpoint.create(data)
 
+def _netbox_update_vm(nb, vm, data):
+    data = _flatten_vm_enums(data)
+    data = find_ids(nb, data)
+    return vm.update(data)
 
 def ensure_vm_absent(nb_endpoint, data):
     '''

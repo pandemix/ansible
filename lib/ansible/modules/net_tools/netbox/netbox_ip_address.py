@@ -190,16 +190,22 @@ def netbox_create_ip_address(nb, nb_endpoint, data):
     if data.get('vrf'):
         get_kwargs['vrf_id'] = data['vrf']
 
-    if not nb_endpoint.get(**get_kwargs):
+    nb_ipaddr = nb_endpoint.get(**get_kwargs)
+    if not nb_ipaddr:
         # if the record doesn't exist, try to create it
         try:
-            return nb_endpoint.create([data])
+            nb_ipaddr = nb_endpoint.create([data])
+            nb_ipaddr['changed'] = True
+            return nb_ipaddr
         except pynetbox.RequestError as e:
             return json.loads(e.error)
     else:
         # if the record does exist, try to update it
         try:
-            return nb_endpoint.update([data])
+            changed = nb_ipaddr.update([data])
+            nb_ipaddr_ser = nb_ipaddr.serialize()
+            nb_ipaddr_ser['changed'] = changed
+            return nb_ipaddr_ser
         except pynetbox.RequestError as e:
             return json.loads(e.error)
 
@@ -262,10 +268,14 @@ def main():
     except AttributeError:
         module.fail_json(msg="Incorrect application specified: %s" % (app))
 
+    # this particular approach, which differs from the approach in netbox_device, netbox_vif and netbox_vm, makes it harder to
+    # return a true sense of whether the record was updated when an update occurs.  So we add an extra key 'changed' which we pop
+    # in order to discover whether there was a change to the record.  This way we can handle both creates and updates, and remain
+    # true to the spirit of Ansible.  dict.pop() was introduced in Python 2.3 so it should be safe to use here.
     nb_endpoint = getattr(nb_app, endpoint)
     if 'present' in state:
         response = netbox_create_ip_address(nb, nb_endpoint, data)
-        if response[0].get('created'):
+        if response[0].pop('changed', False):
             changed = True
     else:
         response = netbox_delete_ip_address(nb, nb_endpoint, data)

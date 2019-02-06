@@ -241,9 +241,11 @@ def ensure_vif_present(nb, nb_endpoint, data):
         changed = True
         msg = "Virtual interface %s created on %s" % (data["name"], data["virtual_machine"])
     else:
-        msg = "Virtual interface %s already exists on %s" % (data["name"], data["virtual_machine"])
+        # since the record already exists, attempt to update it
+        changed = _netbox_update_vif(nb, nb_vif, data)
         vif = nb_vif.serialize()
-        changed = False
+        msg = "Virtual interface %s on %s " % (data["name"], data["virtual_machine"])
+        msg = msg + ("updated" if changed else "needed no update")
 
     return {"vif": vif, "msg": msg, "changed": changed}
 
@@ -252,6 +254,9 @@ def _netbox_create_vif(nb, nb_endpoint, data):
     data = find_ids(nb, data)
     return nb_endpoint.create(data)
 
+def _netbox_update_vif(nb, vif, data):
+    data = find_ids(nb, data)
+    return vif.update(data)
 
 def ensure_vif_absent(nb_endpoint, data):
     '''
