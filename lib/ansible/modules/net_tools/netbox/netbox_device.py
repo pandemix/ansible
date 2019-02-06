@@ -246,21 +246,31 @@ def ensure_device_present(nb, nb_endpoint, data):
         changed = True
         msg = "Device %s created" % (data["name"])
     else:
-        msg = "Device %s already exists" % (data["name"])
+        # since the device already exists, attempt to update it.
+        changed = _netbox_update_device(nb, nb_device, data)
         device = nb_device.serialize()
-        changed = False
+        msg = "Device %s " % (data["name"])
+        msg = msg + ("has been updated" if changed else "required no update")
 
     return {"device": device, "msg": msg, "changed": changed}
 
-
-def _netbox_create_device(nb, nb_endpoint, data):
+# not sure what to call this function which translates enum types for this particular kind of record
+def _flatten_device_enums(data):
     if data.get("status"):
         data["status"] = DEVICE_STATUS.get(data["status"].lower(), 0)
     if data.get("face"):
         data["face"] = FACE_ID.get(data["face"].lower(), 0)
+    return data
+
+def _netbox_create_device(nb, nb_endpoint, data):
+    data = _flatten_device_enums(data)
     data = find_ids(nb, data)
     return nb_endpoint.create(data)
 
+def _netbox_update_device(nb, device, data):
+    data = _flatten_device_enums(data)
+    data = find_ids(data)
+    return device.update(data)
 
 def ensure_device_absent(nb_endpoint, data):
     '''
