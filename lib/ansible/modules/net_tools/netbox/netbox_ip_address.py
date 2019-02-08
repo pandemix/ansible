@@ -157,10 +157,18 @@ EXAMPLES = r'''
 '''
 
 RETURN = r'''
-meta:
-  description: Message indicating failure or returns results with the object created within Netbox
+ip_address:
+  description: The IP address record object as JSON
+  returned: when C(state=present)
+  type: dict
+msg:
+  description: A brief informational message about the effect of the task
   returned: always
-  type: list
+  type: str
+changed:
+  description: Set to true if the module made a change
+  returned: always
+  type: boolean
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -175,57 +183,57 @@ except ImportError:
 
 # this routine gets called when state=present; it should perform an update if the record already exists
 def netbox_create_ip_address(nb, nb_endpoint, data):
-    result = []
+    result = {}
     norm_data = normalize_data(data)
     if norm_data.get("status"):
         norm_data["status"] = IP_ADDRESS_STATUS.get(norm_data["status"].lower())
     if norm_data.get("role"):
         norm_data["role"] = IP_ADDRESS_ROLE.get(norm_data["role"].lower())
     data = find_ids(nb, norm_data)
-    if data.get('failed'):
-        result.append(data)
-        return result
+    if "failed" in data:
+        return dict(msg=data["failed"], failed=True)
 
     get_kwargs = dict(address=data["address"])
-    if data.get('vrf'):
-        get_kwargs['vrf_id'] = data['vrf']
+    if "vrf" in data:
+        get_kwargs["vrf_id"] = data["vrf"]
 
     nb_ipaddr = nb_endpoint.get(**get_kwargs)
     if not nb_ipaddr:
         # if the record doesn't exist, try to create it
         try:
-            nb_ipaddr = nb_endpoint.create([data])
-            nb_ipaddr['changed'] = True
-            return nb_ipaddr
+            nb_ipaddr = nb_endpoint.create(**data)  # this should not be passed as a list b/c the return value comes back as a list
         except pynetbox.RequestError as e:
-            return json.loads(e.error)
+            return dict(msg=e.message, failed=True)
+        else:
+            dev_or_vm = norm_data["interface"]["device"] if "device" in norm_data["interface"] else norm_data["interface"]["virtual_machine"]
+            return dict(ip_address=nb_ipaddr, changed=True, msg="Created %s on %s @ %s" % (norm_data["address"], norm_data["interface"]["name"], dev_or_vm))
     else:
         # if the record does exist, try to update it
         try:
-            changed = nb_ipaddr.update([data])
-            nb_ipaddr_ser = nb_ipaddr.serialize()
-            nb_ipaddr_ser['changed'] = changed
-            return nb_ipaddr_ser
+            return dict(ip_address=nb_ipaddr, changed=nb_ipaddr.update(data), msg="Updated %s" % (norm_data["address"]))
         except pynetbox.RequestError as e:
-            return json.loads(e.error)
-
-    return result
+            return dict(msg=e.message, failed=True)
 
 
 def netbox_delete_ip_address(nb, nb_endpoint, data):
     norm_data = normalize_data(data)
-    result = []
-    if data.get('vrf'):
+    result = {}
+    if "vrf" in data:
         data = find_ids(nb, norm_data)
-        endpoint = nb_endpoint.get(address=norm_data["address"], vrf_id=data['vrf'])
+        response = nb_endpoint.get(address=norm_data["address"], vrf_id=data["vrf"])
     else:
-        endpoint = nb_endpoint.get(address=norm_data["address"])
+        response = nb_endpoint.get(address=norm_data["address"])
 
-    try:
-        if endpoint.delete():
-            result.append({'success': '%s deleted from Netbox' % (norm_data["address"])})
-    except AttributeError:
-        result.append({'failed': '%s not found' % (norm_data["address"])})
+    if response:
+        try:
+            if response.delete():
+                result["msg"] = "%s deleted from Netbox" % (norm_data["address"])
+                result["changed"] = True
+        except Exception as e:
+            result["msg"] = e.message
+            result["failed"] = True
+    else:
+        result["msg"] = "%s not found" % (norm_data["address"])
     return result
 
 
@@ -237,7 +245,7 @@ def main():
         netbox_url=dict(type="str", required=True),
         netbox_token=dict(type="str", required=True, no_log=True),
         data=dict(type="dict", required=True),
-        state=dict(required=False, default='present', choices=['present', 'absent']),
+        state=dict(required=False, default="present", choices=["present", "absent"]),
         validate_certs=dict(type="bool", default=True)
     )
 
@@ -268,20 +276,19 @@ def main():
     except AttributeError:
         module.fail_json(msg="Incorrect application specified: %s" % (app))
 
-    # this particular approach, which differs from the approach in netbox_device, netbox_vif and netbox_vm, makes it harder to
-    # return a true sense of whether the record was updated when an update occurs.  So we add an extra key 'changed' which we pop
-    # in order to discover whether there was a change to the record.  This way we can handle both creates and updates, and remain
-    # true to the spirit of Ansible.  dict.pop() was introduced in Python 2.3 so it should be safe to use here.
+    # the create/delete routines now compile a dict suitable for sending to Ansible; all we
+    # need do here is provide a default if the changed key is missing, and make sure to call
+    # the right exit method on the module object
     nb_endpoint = getattr(nb_app, endpoint)
     if 'present' in state:
         response = netbox_create_ip_address(nb, nb_endpoint, data)
-        if response[0].pop('changed', False):
-            changed = True
     else:
         response = netbox_delete_ip_address(nb, nb_endpoint, data)
-        if 'success' in response[0]:
-            changed = True
-    module.exit_json(changed=changed, meta=response)
+    if "changed" not in response:
+        response["changed"] = False
+    if response.pop("failed", False):
+        module.fail_json(**response)
+    module.exit_json(**response)
 
 
 if __name__ == "__main__":
