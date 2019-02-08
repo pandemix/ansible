@@ -46,6 +46,7 @@ options:
           - 6
       address:
         description:
+          - The IP address with CIDR mask
           - Required if state is C(present)
       vrf:
         description:
@@ -87,11 +88,11 @@ options:
           - Any tags that the IP address may need to be associated with
       custom_fields:
         description:
-          - must exist in Netbox
+          - Custom fields must be defined in Netbox before they may be used via API.
     required: true
   state:
     description:
-      - Use C(present) or C(absent) for adding or removing.
+      - Use C(present) or C(absent) for adding/updating or removing, respectively.
     choices: [ absent, present ]
     default: present
   validate_certs:
@@ -158,7 +159,7 @@ EXAMPLES = r'''
 
 RETURN = r'''
 ip_address:
-  description: The IP address record object as JSON
+  description: The IP address record object (a dict) as JSON
   returned: when C(state=present)
   type: dict
 msg:
@@ -168,7 +169,7 @@ msg:
 changed:
   description: Set to true if the module made a change
   returned: always
-  type: boolean
+  type: bool
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -189,7 +190,13 @@ def netbox_create_ip_address(nb, nb_endpoint, data):
         norm_data["status"] = IP_ADDRESS_STATUS.get(norm_data["status"].lower())
     if norm_data.get("role"):
         norm_data["role"] = IP_ADDRESS_ROLE.get(norm_data["role"].lower())
-    data = find_ids(nb, norm_data)
+    try:
+        iface_name = data["interface"]["name"]
+        dev_or_vm = data["interface"]["device"] if "device" in data["interface"] else data["interface"]["virtual_machine"]
+    except KeyError as e:
+        return dict(msg="Interfaces must be defined by their name and either the device or virtual_machine they belong to", failed=True)
+    else:
+        data = find_ids(nb, norm_data)
     if "failed" in data:
         return dict(msg=data["failed"], failed=True)
 
@@ -205,12 +212,11 @@ def netbox_create_ip_address(nb, nb_endpoint, data):
         except pynetbox.RequestError as e:
             return dict(msg=e.message, failed=True)
         else:
-            dev_or_vm = norm_data["interface"]["device"] if "device" in norm_data["interface"] else norm_data["interface"]["virtual_machine"]
-            return dict(ip_address=nb_ipaddr, changed=True, msg="Created %s on %s @ %s" % (norm_data["address"], norm_data["interface"]["name"], dev_or_vm))
+            return dict(ip_address=dict(nb_ipaddr), changed=True, msg="Created %s on %s @ %s" % (norm_data["address"], iface_name, dev_or_vm))
     else:
         # if the record does exist, try to update it
         try:
-            return dict(ip_address=nb_ipaddr, changed=nb_ipaddr.update(data), msg="Updated %s" % (norm_data["address"]))
+            return dict(ip_address=dict(nb_ipaddr), changed=nb_ipaddr.update(data), msg="Updated %s" % (norm_data["address"]))
         except pynetbox.RequestError as e:
             return dict(msg=e.message, failed=True)
 
