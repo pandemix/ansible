@@ -1,10 +1,14 @@
 {
     "ANSIBLE_MODULE_ARGS": {
 	"netbox_url": "https://netbox.int.easydns.net",
-	"netbox_token": "{{ lookup('file', '/etc/ansible/netbox_private_token') }}",
+	"netbox_token": "",
 	"state": "present",
 	"data": {
 	    "name": "scapegoat",
+	    "cluster": "kvm05-pco",
+	    "memory": 16,
+	    "status": "staged",
+	    "platform": "stretch",
 	    "vcpus": 6
 	}
     }
