@@ -13,11 +13,13 @@ API_APPS_ENDPOINTS = dict(
     ipam=["ip_addresses", "prefixes", "vlans", "vrfs"],
     secrets=[],
     tenancy=["tenants", "tenant_groups"],
-    virtualization=["clusters", "virtual-machines"]
+    virtualization=["clusters", "cluster-groups", "cluster-types", "virtual-machines"]
 )
 
 QUERY_TYPES = dict(
     cluster="name",
+    group="slug",
+    type="slug",
     device_role="slug",
     device_type="slug",
     manufacturer="slug",
@@ -37,6 +39,8 @@ QUERY_TYPES = dict(
 
 CONVERT_TO_ID = dict(
     cluster="clusters",
+    group="cluster-groups",
+    type="cluster-types",
     device_role="device_roles",
     device_type="device_types",
     interface="interfaces",
