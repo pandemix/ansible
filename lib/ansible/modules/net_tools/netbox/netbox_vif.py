@@ -237,13 +237,13 @@ def ensure_vif_present(nb, nb_endpoint, data):
     '''
     nb_vif = nb_endpoint.get(name=data["name"], virtual_machine=data["virtual_machine"])
     if not nb_vif:
-        vif = _netbox_create_vif(nb, nb_endpoint, data).serialize()
+        vif = dict(_netbox_create_vif(nb, nb_endpoint, data))
         changed = True
         msg = "Virtual interface %s created on %s" % (data["name"], data["virtual_machine"])
     else:
         # since the record already exists, attempt to update it
         changed = _netbox_update_vif(nb, nb_vif, data)
-        vif = nb_vif.serialize()
+        vif = dict(nb_endpoint.get(nb_vif.id))  # to restore the depth of the record
         msg = "Virtual interface %s on %s " % (data["name"], data["virtual_machine"])
         msg = msg + ("updated" if changed else "needed no update")
 

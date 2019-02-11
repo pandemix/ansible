@@ -221,7 +221,7 @@ def ensure_cluster_present(nb, nb_endpoint, data):
     else:
         # since the record already exists, attempt to update it
         changed = _netbox_update_cluster(nb, nb_cluster, data)
-        cluster = dict(nb_cluster)
+        cluster = dict(nb_endpoint.get(nb_cluster.id)) # in order to restore the depth of the object
         msg = "Cluster %s " % (data["name"])
         msg = msg + ("updated" if changed else "needed no update")
 

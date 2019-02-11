@@ -216,7 +216,8 @@ def netbox_create_ip_address(nb, nb_endpoint, data):
     else:
         # if the record does exist, try to update it
         try:
-            return dict(ip_address=dict(nb_ipaddr), changed=nb_ipaddr.update(data), msg="Updated %s" % (norm_data["address"]))
+            changed = nb_ipaddr.update(data)
+            return dict(ip_address=dict(nb_endpoint.get(nb_ipaddr.id)), changed=changed , msg="Updated %s" % (norm_data["address"]))
         except pynetbox.RequestError as e:
             return dict(msg=e.message, failed=True)
 

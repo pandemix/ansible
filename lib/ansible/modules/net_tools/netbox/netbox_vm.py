@@ -237,13 +237,13 @@ def ensure_vm_present(nb, nb_endpoint, data):
     '''
     nb_vm = nb_endpoint.get(name=data["name"])
     if not nb_vm:
-        vm = _netbox_create_vm(nb, nb_endpoint, data).serialize()
+        vm = dict(_netbox_create_vm(nb, nb_endpoint, data))
         changed = True
         msg = "Virtual machine %s created" % (data["name"])
     else:
         # since the record already exists, attempt to update it
         changed = _netbox_update_vm(nb, nb_vm, data)
-        vm = nb_vm.serialize()
+        vm = dict(nb_endpoint.get(nb_vm.id))
         msg = "Virtual machine %s " % (data["name"])
         msg = msg + ("updated" if changed else "needed no update")
 

@@ -242,13 +242,13 @@ def ensure_device_present(nb, nb_endpoint, data):
     '''
     nb_device = nb_endpoint.get(name=data["name"])
     if not nb_device:
-        device = _netbox_create_device(nb, nb_endpoint, data).serialize()
+        device = dict(_netbox_create_device(nb, nb_endpoint, data))
         changed = True
         msg = "Device %s created" % (data["name"])
     else:
         # since the device already exists, attempt to update it.
         changed = _netbox_update_device(nb, nb_device, data)
-        device = nb_device.serialize()
+        device = dict(nb_endpoint.get(nb_device.id))
         msg = "Device %s " % (data["name"])
         msg = msg + ("has been updated" if changed else "required no update")
 
