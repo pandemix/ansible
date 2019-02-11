@@ -158,7 +158,7 @@ EXAMPLES = r'''
 RETURN = r'''
 vif:
   description: Serialized object as created or already existent within Netbox
-  returned: on creation
+  returned: when C(state=present)
   type: dict
 msg:
   description: Message indicating failure or info about what has been achieved
