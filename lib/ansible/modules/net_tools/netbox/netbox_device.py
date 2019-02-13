@@ -231,7 +231,7 @@ def main():
                 **ensure_device_absent(nb_endpoint, norm_data)
             )
     except pynetbox.RequestError as e:
-        return module.fail_json(msg=json.loads(e.error))
+        return module.fail_json(msg=str(e))
 
 
 def ensure_device_present(nb, nb_endpoint, data):
@@ -269,7 +269,7 @@ def _netbox_create_device(nb, nb_endpoint, data):
 
 def _netbox_update_device(nb, device, data):
     data = _flatten_device_enums(data)
-    data = find_ids(data)
+    data = find_ids(nb, data)
     return device.update(data)
 
 def ensure_device_absent(nb_endpoint, data):
