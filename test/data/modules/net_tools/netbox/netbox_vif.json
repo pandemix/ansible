@@ -4,12 +4,10 @@
 	"netbox_token": "$NB_TOKEN",
 	"state": "present",
 	"data": {
-	    "name": "scapegoat",
-	    "cluster": "kvm05-pco",
-	    "memory": 16,
-	    "status": "staged",
-	    "platform": "stretch",
-	    "vcpus": 6
+	    "name": "ens3",
+	    "virtual_machine": "scapegoat",
+	    "mtu": 1500,
+	    "mac_address": "00:00:00:00:00:00"
 	}
     }
 }

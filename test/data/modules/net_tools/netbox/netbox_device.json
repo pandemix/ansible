@@ -1,0 +1,17 @@
+{
+    "ANSIBLE_MODULE_ARGS": {
+	"netbox_url": "https://netbox.int.easydns.net",
+	"netbox_token": "$NB_TOKEN",
+	"state": "present",
+	"data": {
+	    "name": "scapegoatherd",
+	    "status": "inventory",
+	    "device_type": "dell-r630",
+	    "device_role": "kvm-servers",
+	    "platform": "stretch",
+	    "tags": ["testing"],
+	    "cluster": "goatcluster",
+	    "site": "duf"
+	}
+    }
+}

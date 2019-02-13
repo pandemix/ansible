@@ -1,0 +1,16 @@
+{
+    "ANSIBLE_MODULE_ARGS": {
+	"netbox_url": "https://netbox.int.easydns.net",
+	"netbox_token": "$NB_TOKEN",
+	"state": "present",
+	"data": {
+	    "address": "10.255.255.128/24",
+	    "vrf": "Mgmt",
+	    "status": "reserved",
+	    "interface": {
+		"name": "ens3",
+		"virtual_machine": "scapegoat"
+	    }
+	}
+    }
+}
