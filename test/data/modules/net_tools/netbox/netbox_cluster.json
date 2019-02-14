@@ -1,0 +1,14 @@
+{
+    "ANSIBLE_MODULE_ARGS": {
+	"netbox_url": "https://netbox.int.easydns.net",
+	"netbox_token": "$NB_TOKEN",
+	"state": "present",
+	"data": {
+	    "name": "goatcluster",
+	    "type": "self-hosted",
+	    "group": "kvm-pco",
+	    "comments": "created as part of testing new Ansible modules for Netbox",
+	    "tags": [ "testing" ]
+	}
+    }
+}

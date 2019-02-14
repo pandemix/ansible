@@ -1,0 +1,4 @@
+- name: Test netbox_vm module
+  hosts: localhost
+  tasks:
+    

@@ -210,16 +210,18 @@ def netbox_create_ip_address(nb, nb_endpoint, data):
         try:
             nb_ipaddr = nb_endpoint.create(**data)  # this should not be passed as a list b/c the return value comes back as a list
         except pynetbox.RequestError as e:
-            return dict(msg=e.message, failed=True)
+            return dict(msg=str(e), failed=True)
         else:
             return dict(ip_address=dict(nb_ipaddr), changed=True, msg="Created %s on %s @ %s" % (norm_data["address"], iface_name, dev_or_vm))
     else:
         # if the record does exist, try to update it
         try:
             changed = nb_ipaddr.update(data)
-            return dict(ip_address=dict(nb_endpoint.get(nb_ipaddr.id)), changed=changed , msg="Updated %s" % (norm_data["address"]))
         except pynetbox.RequestError as e:
-            return dict(msg=e.message, failed=True)
+            return dict(msg=str(e), failed=True)
+        else:
+            msg = ("Updated " if changed else "No update required for ") + "%s" % (norm_data["address"])
+            return dict(ip_address=dict(nb_endpoint.get(nb_ipaddr.id)), changed=changed , msg=msg)
 
 
 def netbox_delete_ip_address(nb, nb_endpoint, data):

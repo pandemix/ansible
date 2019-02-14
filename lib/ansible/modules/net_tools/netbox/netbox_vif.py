@@ -226,7 +226,7 @@ def main():
                 **ensure_vif_absent(nb_endpoint, norm_data)
             )
     except pynetbox.RequestError as e:
-        return module.fail_json(msg=json.loads(e.error))
+        return module.fail_json(msg=str(e))
 
 
 def ensure_vif_present(nb, nb_endpoint, data):
