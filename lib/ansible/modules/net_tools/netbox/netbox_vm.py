@@ -9,7 +9,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -48,8 +48,8 @@ options:
           - Required
       cluster:
         description:
-          - Cluster where the virtual machine will run.
-          - Required if I(state=present)
+          - Cluster where the virtual machine lives.
+          - Required if C(state=present) and the record does not yet exist.
       vcpus:
         description:
           - Number of vCPUs assigned to this virtual machine.
@@ -103,61 +103,51 @@ options:
 
 # TODO: fix the examples
 EXAMPLES = r'''
-- name: "Test Netbox modules"
-  connection: local
+- name: Example invocations of netbox_vm module
   hosts: localhost
-  gather_facts: False
-
+  vars:
+    netbox_url: 'https://netbox.int.easydns.net'
+    netbox_token: '{{ lookup("file", "/etc/ansible/netbox_private_token").split(" ")[-1] }}'
   tasks:
-    - name: Create device within Netbox with only required information
-      netbox_device:
-        netbox_url: http://netbox.local
-        netbox_token: thisIsMyToken
+    - name: 'create a vm in netbox'
+      netbox_vm:
+        netbox_url: '{{ netbox_url }}'
+        netbox_token: '{{ netbox_token }}'
+        state: 'present'
         data:
-          name: Test (not really required, but helpful)
-          device_type: C9410R
-          device_role: Core Switch
-          site: Main
-        state: present
+          name: 'scapegoat2'
+          cluster: 'kvm05-pco'
+      register: create_op
 
-    - name: Delete device within netbox
-      netbox_device:
-        netbox_url: http://netbox.local
-        netbox_token: thisIsMyToken
+    - name: 'update the vm'
+      netbox_vm:
+        netbox_url: '{{ netbox_url }}'
+        netbox_token: '{{ netbox_token }}'
+        state: 'present'
         data:
-          name: Test
-        state: absent
+          name: 'scapegoat2'
+          memory: 8
+          vcpus: 4
+          disk: 20
+      register: update_op
 
-    - name: Create device with tags
-      netbox_device:
-        netbox_url: http://netbox.local
-        netbox_token: thisIsMyToken
+    - name: 'delete vm from netbox'
+      netbox_vm:
+        netbox_url: '{{ netbox_url }}'
+        netbox_token: '{{ netbox_token }}'
+        state: 'absent'
         data:
-          name: Test
-          device_type: C9410R
-          device_role: Core Switch
-          site: Main
-          tags:
-            - Schnozzberry
-        state: present
-
-    - name: Create device and assign to rack and position
-      netbox_device:
-        netbox_url: http://netbox.local
-        netbox_token: thisIsMyToken
-        data:
-          name: Test
-          device_type: C9410R
-          device_role: Core Switch
-          site: Main
-          rack: Test Rack
-          position: 10
-          face: Front
+          name: 'scapegoat2'
+      register: delete_op
 '''
 
 RETURN = r'''
 vm:
-  description: Serialized object as created or already existent within Netbox
+  description: >
+    Record object as created or already existent within Netbox.  The structure is congruent with the
+    structure returned by the Netbox API.  It always returns the detail view; future revisions may
+    include an extra argument to suppress the extra lookup and rendering of the detail view for create
+    operations.
   returned: on creation
   type: dict
 msg:
@@ -237,7 +227,7 @@ def ensure_vm_present(nb, nb_endpoint, data):
     '''
     nb_vm = nb_endpoint.get(name=data["name"])
     if not nb_vm:
-        vm = dict(_netbox_create_vm(nb, nb_endpoint, data))
+        vm = dict(nb_endpoint.get(_netbox_create_vm(nb, nb_endpoint, data).id))
         changed = True
         msg = "Virtual machine %s created" % (data["name"])
     else:
@@ -249,20 +239,24 @@ def ensure_vm_present(nb, nb_endpoint, data):
 
     return {"vm": vm, "msg": msg, "changed": changed}
 
+
 def _flatten_vm_enums(data):
     if data.get("status"):
         data["status"] = VM_STATUS.get(data["status"].lower(), 0)
     return data
+
 
 def _netbox_create_vm(nb, nb_endpoint, data):
     data = _flatten_vm_enums(data)
     data = find_ids(nb, data)
     return nb_endpoint.create(data)
 
+
 def _netbox_update_vm(nb, vm, data):
     data = _flatten_vm_enums(data)
     data = find_ids(nb, data)
     return vm.update(data)
+
 
 def ensure_vm_absent(nb_endpoint, data):
     '''
